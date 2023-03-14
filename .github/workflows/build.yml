@@ -13,10 +13,6 @@ jobs:
         arch: [arm64, arm]
         gcc: [gcc-aarch64-linux-gnu, gcc-arm-linux-gnueabihf]
         cross_compile: [aarch64-linux-gnu-, arm-linux-gnueabihf-]
-    env:
-      KUBERNETES_CPU_REQUEST: 16
-      KUBERNETES_MEMORY_REQUEST: 32G
-      KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 300G
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -33,10 +29,6 @@ jobs:
 
   kernel-arm:
     runs-on: ubuntu-latest
-    env:
-      KUBERNETES_CPU_REQUEST: 16
-      KUBERNETES_MEMORY_REQUEST: 32G
-      KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 300G
     if: github.event_name != 'pull_request'
     strategy:
       matrix:
