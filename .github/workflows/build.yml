@@ -1,0 +1,71 @@
+name: Build Linux Kernel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  kernel:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [arm64, arm]
+        gcc: [gcc-aarch64-linux-gnu, gcc-arm-linux-gnueabihf]
+        cross_compile: [aarch64-linux-gnu-, arm-linux-gnueabihf-]
+    env:
+      KUBERNETES_CPU_REQUEST: 16
+      KUBERNETES_MEMORY_REQUEST: 32G
+      KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 300G
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget build-essential libncurses-dev bison flex libssl-dev libelf-dev bc ${{ matrix.gcc }}
+      - name: Build kernel
+        run: |
+          wget https://kernel.googlesource.com/pub/scm/linux/kernel/git/torvalds/linux.git/+archive/refs/heads/master.tar.gz
+          tar xf master.tar.gz
+          make defconfig
+          make all -j$(nproc) ARCH=${{ matrix.arch }} CROSS_COMPILE=${{ matrix.cross_compile }}
+
+  kernel-arm:
+    runs-on: ubuntu-latest
+    env:
+      KUBERNETES_CPU_REQUEST: 16
+      KUBERNETES_MEMORY_REQUEST: 32G
+      KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 300G
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        os: [ubuntu, debian]
+        version: [18.04, 20.04]
+        arch: [arm64, armv7, armv6]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget build-essential libncurses-dev bison flex libssl-dev libelf-dev bc
+      - name: Build kernel
+        run: |
+          wget https://kernel.googlesource.com/pub/scm/linux/kernel/git/torvalds/linux.git/+archive/refs/heads/master.tar.gz
+          tar xf master.tar.gz
+          make defconfig
+          make all -j$(nproc)
+    env:
+      CI_JOB_NAME: ${{ matrix.os }}-${{ matrix.version }}-${{ matrix.arch }}
+      DOCKER_IMAGE: gcr.io/kaniko-project/executor:v1.6.0-debug
+      DOCKER_CONFIG: |
+        {
+          "auths": {
+            "gcr.io": {
+              "auth": "${{ secrets.GCR_AUTH }}"
+            }
+          }
+        }
+      KANIKO_EXTRA_ARGS: --build-arg GCC_VER=8
+
